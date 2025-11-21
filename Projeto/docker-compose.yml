@@ -1,0 +1,54 @@
+name: gerenciador-eventos
+
+services:
+  db:
+    build:
+      context: ./Backend/db
+      dockerfile: Dockerfile
+    container_name: gerenciador-db
+    env_file:
+      - ./.env
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: gerenciador-backend
+    env_file:
+      - ./.env
+    ports:
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gerenciador-frontend
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  default:
+    name: gerenciador-net
+    driver: bridge
